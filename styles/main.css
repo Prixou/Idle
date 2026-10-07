@@ -706,6 +706,36 @@ button:focus-visible {
   color: var(--blue-dark);
 }
 
+/* Onglets de régions du Pokédex (défilement horizontal) */
+.dex-regions {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 4px 4px 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.region-chip {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 7px;
+  background: var(--white);
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.region-chip span { font-size: 6px; color: #5a5a6a; }
+.region-chip.active { color: var(--white); background: var(--blue); }
+.region-chip.active span { color: var(--white); }
+.region-chip.locked { opacity: 0.55; }
+.region-chip.complete { background: var(--yellow); }
+.region-chip.complete.active { color: var(--ink); }
+.region-chip.complete.active span { color: var(--ink); }
+
 .dex {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
@@ -728,7 +758,7 @@ button:focus-visible {
 .dex-cell.seen img { filter: none; opacity: 1; }
 .dex-cell.seen[data-rarity="rare"] { background: #eadcfa; }
 .dex-cell.seen[data-rarity="legendary"] { background: #fff1b0; }
-.dex-cell.shiny { background: var(--yellow); box-shadow: inset 0 0 0 2px var(--ink), inset 0 0 0 4px #fff; }
+.dex-cell.seen.shiny { background: var(--yellow); box-shadow: inset 0 0 0 2px var(--ink), inset 0 0 0 4px #fff; }
 
 .dex-num {
   position: absolute;

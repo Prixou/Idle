@@ -8,11 +8,10 @@ icons/                          icônes de l'appli (PWA, écran d'accueil)
 ```
 
 Les sprites viennent de [PokeAPI/sprites](https://github.com/PokeAPI/sprites)
-(© The Pokémon Company, usage personnel). Pour les retélécharger ou ajouter une génération :
+(© The Pokémon Company, usage personnel). Pour les retélécharger (ou ajouter une
+future génération : ajouter aussi la région dans `REGIONS` de `src/config.js`) :
 
 ```bash
-python3 tools/fetch_assets.py 251   # Pokédex jusqu'au n° 251
+python3 tools/fetch_assets.py        # Pokédex complet, n° 1 à 1025
 ```
-
-Pensez à mettre `POKEDEX_SIZE` à jour dans `sw.js` si vous changez la taille du Pokédex.
 Les sprites s'affichent avec `image-rendering: pixelated` pour garder des pixels nets.

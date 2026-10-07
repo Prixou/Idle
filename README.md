@@ -18,10 +18,13 @@ python3 -m http.server 8000
 
 - **Clic** : tapez le Pokémon sauvage pour lui retirer des PV. À 0 PV il est attrapé
   et rapporte des ₽ selon sa rareté, plus 1 s de production.
-- **151 Pokémon** (1re génération) : les évolutions n'apparaissent qu'à partir des zones 4
-  (stade 2) et 8 (stade 3), les légendaires à partir de la zone 12.
+- **1025 Pokémon** (générations 1 à 9) répartis en 9 régions débloquées par zone :
+  Kanto (1), Johto (10), Hoenn (20), Sinnoh (30), Unys (40), Kalos (50), Alola (60),
+  Galar (70), Paldea (80). Dans chaque région, les évolutions apparaissent 3 (stade 2)
+  et 7 zones (stade 3) plus tard, les légendaires 11 zones plus tard.
 - **Zones** : toutes les 15 captures → PV x1.25, récompenses x1.2.
-- **Pokédex** : +2% de production et de récompenses par espèce, +1% par espèce chromatique.
+- **Pokédex** : +1% de production et de récompenses par espèce, +1% par espèce chromatique.
+  Consultable région par région dans l'onglet Stats.
 - **Chromatiques** : 1 chance sur 512, récompense x5.
 - **Générateurs** : 8 Balls, du Piège Simple à la Master Ball (prix x1.15, achat x1 / x10 / MAX).
   Production x2 aux paliers 25, 50, 100, 150… exemplaires.
@@ -40,13 +43,13 @@ python3 -m http.server 8000
 index.html            page du jeu
 manifest.webmanifest  manifeste PWA
 sw.js                 service worker (hors ligne)
-src/pokedex-data.js   151 Pokémon (généré par tools/fetch_assets.py)
+src/pokedex-data.js   1025 Pokémon (généré par tools/fetch_assets.py)
 src/config.js         constantes : raretés, générateurs, upgrades, événements, équilibrage
 src/game.js           logique : état, sauvegarde et migration, économie, game loop
 src/ui.js             rendu de l'UI, onglets, animations, formatage des nombres
 styles/main.css       design pixel art (police Press Start 2P intégrée)
 assets/               sprites PokeAPI et icônes de l'appli
-tools/fetch_assets.py retélécharge données et sprites (ex. `python3 tools/fetch_assets.py 251`)
+tools/fetch_assets.py retélécharge données et sprites depuis PokeAPI
 ```
 
 ## Feuille de route

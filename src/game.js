@@ -5,7 +5,7 @@
   'use strict';
 
   const {
-    GAME, RARITIES, POKEMON, POKEMON_BY_ID, GENERATORS, GENERATORS_BY_ID,
+    GAME, RARITIES, REGIONS, POKEMON, POKEMON_BY_ID, GENERATORS, GENERATORS_BY_ID,
     UPGRADES, UPGRADES_BY_ID, BUFFS, ROAMER,
   } = window.CONFIG;
   const UI = window.UI;
@@ -262,6 +262,12 @@
     return 1 + Math.floor(Game.state.totalCaught / GAME.CATCHES_PER_ZONE);
   };
 
+  // Dernière région débloquée (les Pokémon des régions précédentes restent présents)
+  Game.region = function () {
+    const zone = Game.zone();
+    return REGIONS.filter((r) => r.zone <= zone).pop();
+  };
+
   // Un générateur est visible si c'est le premier ou si le précédent a été acheté.
   Game.isGeneratorUnlocked = function (g) {
     const i = GENERATORS.indexOf(g);
@@ -420,7 +426,15 @@
 
     if (isNewShiny) UI.toast('★ ' + p.name + ' chromatique ajouté au Pokédex !', 'gold');
     else if (p.rarity === 'legendary') UI.toast(p.name + ' légendaire attrapé !', 'gold');
-    if (Game.zone() > zoneBefore) UI.toast('Zone ' + Game.zone() + ' atteinte ! Pokémon plus forts.', 'blue');
+    if (Game.zone() > zoneBefore) {
+      const region = REGIONS.find((r) => r.zone === Game.zone());
+      if (region) {
+        const count = POKEMON.filter((x) => x.gen === region.gen).length;
+        UI.toast('Nouvelle région : ' + region.name + ' ! ' + count + ' Pokémon à découvrir.', 'gold');
+      } else {
+        UI.toast('Zone ' + Game.zone() + ' atteinte ! Pokémon plus forts.', 'blue');
+      }
+    }
     requestPersistence();
 
     const delay = Game.buffActive('clickFrenzy') ? GAME.CATCH_ANIM_FAST_MS : GAME.CATCH_ANIM_MS;
@@ -577,6 +591,10 @@
     // Pas de service worker en file:// : le jeu reste jouable en ouvrant index.html
     if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Télécharge en arrière-plan les sprites pour pouvoir jouer hors ligne
+    navigator.serviceWorker.ready.then((reg) => {
+      if (reg.active) reg.active.postMessage({ type: 'warm', count: POKEMON.length });
+    });
   }
 
   function init() {

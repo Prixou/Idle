@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  const { GAME, RARITIES, POKEMON, POKEMON_BY_ID, GENERATORS, UPGRADES, BUFFS } = window.CONFIG;
+  const { GAME, RARITIES, REGIONS, POKEMON, POKEMON_BY_ID, GENERATORS, UPGRADES, BUFFS } = window.CONFIG;
 
   /* ------------------------------------------------------------------ */
   /* Formatage                                                           */
@@ -92,6 +92,8 @@
   const upRows = {};
   const statRows = [];
   const dexCells = {};
+  const regionChips = {};
+  let dexGen = 1; // région affichée dans le Pokédex
   const buffChips = {};
   let game = null;
   let activeTab = 'generators';
@@ -180,17 +182,40 @@
       statRows.push(row.lastChild);
     }
 
+    el.dexRegions.innerHTML = '';
+    for (const r of REGIONS) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'region-chip';
+      chip.innerHTML = '<b></b><span></span>';
+      chip.firstChild.textContent = r.name.toUpperCase();
+      chip.addEventListener('click', () => showDexRegion(r.gen));
+      el.dexRegions.appendChild(chip);
+      regionChips[r.gen] = chip;
+    }
+    showDexRegion(dexGen);
+  }
+
+  // Les cases d'une région ne sont créées qu'à sa première ouverture (1025 espèces au total)
+  function showDexRegion(gen) {
+    dexGen = gen;
+    for (const r of REGIONS) regionChips[r.gen].classList.toggle('active', r.gen === gen);
     el.dexGrid.innerHTML = '';
     for (const p of POKEMON) {
-      const cell = document.createElement('div');
-      cell.className = 'dex-cell';
-      cell.dataset.rarity = p.rarity;
-      cell.innerHTML = '<img alt="" loading="lazy" draggable="false"><span class="dex-num"></span>';
-      cell.firstChild.src = p.sprite;
-      cell.lastChild.textContent = p.id;
+      if (p.gen !== gen) continue;
+      let cell = dexCells[p.id];
+      if (!cell) {
+        cell = dexCells[p.id] = document.createElement('div');
+        cell.className = 'dex-cell';
+        cell.dataset.rarity = p.rarity;
+        cell.innerHTML = '<img alt="" loading="lazy" draggable="false"><span class="dex-num"></span>';
+        cell.firstChild.src = p.sprite;
+        cell.lastChild.textContent = p.id;
+      }
       el.dexGrid.appendChild(cell);
-      dexCells[p.id] = cell;
     }
+    dexDirty = true;
+    if (game) statsTimer = Infinity;
   }
 
   function bindEvents() {
@@ -281,6 +306,7 @@
       coins: $('coins'),
       pps: $('pps'),
       zone: $('zone'),
+      region: $('region'),
       caughtCount: $('caught-count'),
       arena: $('arena'),
       pokeName: $('poke-name'),
@@ -299,6 +325,7 @@
       buyMode: $('buy-mode'),
       statsList: $('stats-list'),
       dexGrid: $('dex-grid'),
+      dexRegions: $('dex-regions'),
       dexCount: $('dex-count'),
       dexBonus: $('dex-bonus'),
       btnSave: $('btn-save'),
@@ -523,17 +550,30 @@
   function updateDex(s, d) {
     let seen = 0;
     let shinies = 0;
+    const perRegion = {};
+    for (const r of REGIONS) perRegion[r.gen] = { seen: 0, total: 0 };
     for (const p of POKEMON) {
       const caught = s.pokedex[p.id] || 0;
       const shiny = s.shinydex[p.id] || 0;
       if (caught) seen++;
       if (shiny) shinies++;
+      perRegion[p.gen].total++;
+      if (caught) perRegion[p.gen].seen++;
+      if (p.gen !== dexGen) continue;
       const cell = dexCells[p.id];
       cell.classList.toggle('seen', caught > 0);
       cell.classList.toggle('shiny', shiny > 0);
       const src = shiny ? p.shinySprite : p.sprite;
       if (!cell.firstChild.src.endsWith(src)) cell.firstChild.src = src;
       cell.title = caught ? '#' + p.id + ' ' + p.name + ' ×' + caught + (shiny ? ' (★' + shiny + ')' : '') : '#' + p.id + ' ???';
+    }
+    const zone = game.zone();
+    for (const r of REGIONS) {
+      const chip = regionChips[r.gen];
+      const count = perRegion[r.gen];
+      chip.classList.toggle('locked', zone < r.zone);
+      chip.classList.toggle('complete', count.seen === count.total);
+      setText(chip.lastChild, zone < r.zone ? 'ZONE ' + r.zone : count.seen + '/' + count.total);
     }
     setText(el.dexCount, seen + '/' + POKEMON.length + (shinies ? ' · ★' + shinies : ''));
     setText(el.dexBonus, 'Bonus : ' + formatMult(d.dexMult) + ' production et récompenses (+' +
@@ -594,6 +634,7 @@
     setText(el.pps, format(d.pps));
     el.wallet.classList.toggle('frenzy', game.buffActive('frenzy'));
     setText(el.zone, game.zone());
+    setText(el.region, game.region().name.toUpperCase());
     setText(el.caughtCount, format(s.totalCaught));
     updateBuffs(s);
 

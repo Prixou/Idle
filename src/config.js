@@ -31,12 +31,12 @@
     SHINY_CHANCE: 1 / 512,
     SHINY_REWARD_MULT: 5,
 
-    DEX_BONUS_PER_SPECIES: 0.02,     // +2% production et récompenses par espèce capturée
+    DEX_BONUS_PER_SPECIES: 0.01,     // +1% production et récompenses par espèce capturée
     DEX_BONUS_PER_SHINY: 0.01,       // +1% de plus par espèce capturée en chromatique
 
-    // Zone d'apparition minimale selon le stade d'évolution
-    STAGE_MIN_ZONE: { 1: 1, 2: 4, 3: 8 },
-    LEGENDARY_MIN_ZONE: 12,
+    // Zone d'apparition = zone de la région + décalage selon le stade d'évolution
+    STAGE_ZONE_OFFSET: { 1: 0, 2: 3, 3: 7 },
+    LEGENDARY_ZONE_OFFSET: 11,
 
     PERSIST_AFTER_CATCHES: 25,       // demande de stockage persistant après N captures
   };
@@ -49,19 +49,38 @@
     legendary: { label: 'LÉGEND.', weight: 2,  hp: 20,  reward: 50 },
   };
 
+  // Une région par génération, débloquée en atteignant sa zone
+  const REGIONS = [
+    { gen: 1, name: 'Kanto', zone: 1 },
+    { gen: 2, name: 'Johto', zone: 10 },
+    { gen: 3, name: 'Hoenn', zone: 20 },
+    { gen: 4, name: 'Sinnoh', zone: 30 },
+    { gen: 5, name: 'Unys', zone: 40 },
+    { gen: 6, name: 'Kalos', zone: 50 },
+    { gen: 7, name: 'Alola', zone: 60 },
+    { gen: 8, name: 'Galar', zone: 70 },
+    { gen: 9, name: 'Paldea', zone: 80 },
+  ];
+  const REGION_BY_GEN = Object.fromEntries(REGIONS.map((r) => [r.gen, r]));
+
   const SPRITES = 'assets/sprites/';
   const itemSprite = (item) => SPRITES + 'items/' + item + '.png';
 
   // Données générées par tools/fetch_assets.py (src/pokedex-data.js)
-  const POKEMON = window.POKEDEX_DATA.map(([id, name, rarity, stage]) => ({
-    id,
-    name,
-    rarity,
-    stage,
-    minZone: rarity === 'legendary' ? GAME.LEGENDARY_MIN_ZONE : GAME.STAGE_MIN_ZONE[stage] || 1,
-    sprite: SPRITES + 'pokemon/' + id + '.png',
-    shinySprite: SPRITES + 'pokemon/shiny/' + id + '.png',
-  }));
+  const POKEMON = window.POKEDEX_DATA.map(([id, name, rarity, stage, gen, hasShiny]) => {
+    const offset = rarity === 'legendary' ? GAME.LEGENDARY_ZONE_OFFSET : GAME.STAGE_ZONE_OFFSET[stage] || 0;
+    const sprite = SPRITES + 'pokemon/' + id + '.png';
+    return {
+      id,
+      name,
+      rarity,
+      stage,
+      gen,
+      minZone: REGION_BY_GEN[gen].zone + offset,
+      sprite,
+      shinySprite: hasShiny === 0 ? sprite : SPRITES + 'pokemon/shiny/' + id + '.png',
+    };
+  });
 
   // Ratios coût / production inspirés des bâtiments de Cookie Clicker
   const GENERATORS = [
@@ -145,6 +164,7 @@
   window.CONFIG = {
     GAME,
     RARITIES,
+    REGIONS,
     POKEMON,
     POKEMON_BY_ID: byId(POKEMON),
     GENERATORS,
