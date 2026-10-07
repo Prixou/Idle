@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Pokémon Tycoon — un jeu idle / clicker rétro : attrape des Pokémon et bâtis ton empire de Pokéballs.">
+  <meta name="theme-color" content="#e3350d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Pokémon Tycoon</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='white' stroke='black' stroke-width='3'/><path d='M2 16a14 14 0 0 1 28 0z' fill='%23e3350d' stroke='black' stroke-width='3'/><circle cx='16' cy='16' r='4' fill='white' stroke='black' stroke-width='3'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <h1 class="logo"><span class="logo-poke">POKéMON</span><span>TYCOON</span></h1>
+      <div class="wallet" id="wallet">
+        <div class="coins"><span class="coin-icon" aria-hidden="true">₽</span><span id="coins">0</span></div>
+        <div class="pps"><span id="pps">0</span> ₽/s</div>
+      </div>
+    </header>
+
+    <section class="arena" id="arena" aria-label="Zone de capture">
+      <div class="arena-info">
+        <span>ZONE <b id="zone">1</b></span>
+        <span><b id="caught-count">0</b> ATTRAPÉS</span>
+      </div>
+
+      <div class="wild-card">
+        <div class="wild-header">
+          <span id="poke-name">???</span>
+          <span class="rarity" id="poke-rarity"></span>
+        </div>
+        <div class="hpbar">
+          <span class="hp-label">PV</span>
+          <div class="hp-track"><div class="hp-fill" id="hp-fill"></div></div>
+        </div>
+        <div class="hp-text" id="hp-text"></div>
+      </div>
+
+      <button class="poke-btn" id="poke-btn" type="button" aria-label="Attaquer le Pokémon">
+        <span class="poke-platform" aria-hidden="true"></span>
+        <span class="poke-bounce"><span class="poke-sprite" id="poke-sprite"></span></span>
+        <span class="ball ball--poke catch-ball" id="catch-ball" aria-hidden="true"></span>
+      </button>
+
+      <p class="hint">TAPE POUR<br>ATTRAPER !</p>
+      <div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
+    </section>
+
+    <main class="panels" id="panels">
+      <section class="panel active" id="panel-generators" role="tabpanel" aria-label="Générateurs">
+        <div class="panel-head">
+          <h2>GÉNÉRATEURS</h2>
+          <div class="buy-mode" id="buy-mode" role="group" aria-label="Quantité d'achat">
+            <button type="button" data-mode="1" class="active">x1</button>
+            <button type="button" data-mode="10">x10</button>
+            <button type="button" data-mode="max">MAX</button>
+          </div>
+        </div>
+        <div class="list" id="gen-list"></div>
+      </section>
+
+      <section class="panel" id="panel-upgrades" role="tabpanel" aria-label="Upgrades">
+        <div class="panel-head"><h2>UPGRADES</h2></div>
+        <div class="list" id="up-list"></div>
+      </section>
+
+      <section class="panel" id="panel-stats" role="tabpanel" aria-label="Statistiques">
+        <div class="panel-head"><h2>STATISTIQUES</h2></div>
+        <dl class="stats" id="stats-list"></dl>
+
+        <div class="panel-head"><h2>POKÉDEX</h2><span class="dex-count" id="dex-count"></span></div>
+        <div class="dex" id="dex-grid"></div>
+
+        <div class="actions">
+          <button type="button" class="btn btn--blue" id="btn-save">SAUVEGARDER</button>
+          <button type="button" class="btn btn--red" id="btn-reset">RÉINITIALISER</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab active" data-tab="generators" role="tab" aria-selected="true">
+        <span class="tab-icon ball ball--poke" aria-hidden="true"></span><span>GÉNÉRATEURS</span><i class="dot"></i>
+      </button>
+      <button type="button" class="tab" data-tab="upgrades" role="tab" aria-selected="false">
+        <span class="tab-icon emoji" aria-hidden="true">⬆️</span><span>UPGRADES</span><i class="dot"></i>
+      </button>
+      <button type="button" class="tab" data-tab="stats" role="tab" aria-selected="false">
+        <span class="tab-icon emoji" aria-hidden="true">📊</span><span>STATS</span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="src/config.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/game.js"></script>
+</body>
+</html>
