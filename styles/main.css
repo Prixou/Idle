@@ -333,16 +333,10 @@ button:focus-visible {
   animation: bounce 1.4s ease-in-out infinite;
 }
 
-/* Sprites PokeAPI 96x96 affichés en x2 (pixels nets) */
+/* Sprites PokeAPI 96x96 (pixels nets) : taille et position calculées par layoutSprite() dans ui.js */
 .poke-sprite {
   position: absolute;
-  left: 50%;
-  bottom: -18px;
-  width: 192px;
-  height: 192px;
-  margin-left: -96px;
   image-rendering: pixelated;
-  transform-origin: 50% 85%;
   filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, 0.25));
   -webkit-user-drag: none;
 }
@@ -754,7 +748,8 @@ button:focus-visible {
   box-shadow: inset 0 0 0 2px var(--ink);
 }
 
-.dex-cell img { width: 100%; height: 100%; filter: brightness(0); opacity: 0.18; }
+.dex-cell img { position: absolute; max-width: none; filter: brightness(0); opacity: 0.18; }
+.dex-num { z-index: 1; }
 .dex-cell.seen img { filter: none; opacity: 1; }
 .dex-cell.seen[data-rarity="rare"] { background: #eadcfa; }
 .dex-cell.seen[data-rarity="legendary"] { background: #fff1b0; }

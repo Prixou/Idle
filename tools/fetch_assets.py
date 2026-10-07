@@ -3,8 +3,10 @@
 
 Usage : python3 tools/fetch_assets.py [dernier_numero_pokedex]   (défaut : 1025, générations 1 à 9)
 
+Nécessite Pillow (pip install pillow) pour mesurer les sprites.
+
 Génère :
-  src/pokedex-data.js                    noms FR, rareté, stade d'évolution, génération
+  src/pokedex-data.js                    noms FR, rareté, stade d'évolution, génération, cadre du sprite
   assets/sprites/pokemon/<n>.png         sprite normal
   assets/sprites/pokemon/shiny/<n>.png   sprite chromatique (si disponible)
   assets/sprites/items/<item>.png        Balls et objets
@@ -15,6 +17,8 @@ import sys
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+
+from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_URL = 'https://raw.githubusercontent.com/PokeAPI/api-data/master/data/api/v2/pokemon-species/{}/index.json'
@@ -80,6 +84,12 @@ def download_sprites(n):
     return shiny is not None
 
 
+def sprite_box(n):
+    """Cadre [x0, y0, x1, y1] du contenu non transparent du sprite (dans l'image 96x96)."""
+    with Image.open(os.path.join(ROOT, 'assets/sprites/pokemon/%d.png' % n)) as im:
+        return list(im.convert('RGBA').getbbox())
+
+
 def main():
     last = int(sys.argv[1]) if len(sys.argv) > 1 else 1025
     numbers = range(1, last + 1)
@@ -105,14 +115,15 @@ def main():
     rows = []
     for n, s in species.items():
         name = next(x['name'] for x in s['names'] if x['language']['name'] == 'fr')
-        row = [n, name, rarity(s), stage(n), GENERATIONS[s['generation']['name']]]
+        row = [n, name, rarity(s), stage(n), GENERATIONS[s['generation']['name']], sprite_box(n)]
         if not has_shiny[n]:
             row.append(0)  # pas de sprite chromatique : le jeu réutilise le sprite normal
         rows.append('  ' + json.dumps(row, ensure_ascii=False) + ',')
 
     js = (
         '/* Généré par tools/fetch_assets.py — données PokeAPI. Ne pas modifier à la main. */\n'
-        '// [numéro Pokédex, nom FR, rareté, stade d\'évolution, génération, (0 = pas de sprite chromatique)]\n'
+        '// [numéro Pokédex, nom FR, rareté, stade d\'évolution, génération, cadre du sprite [x0, y0, x1, y1],\n'
+        '//  (0 = pas de sprite chromatique)]\n'
         'window.POKEDEX_DATA = [\n' + '\n'.join(rows) + '\n];\n'
     )
     save('src/pokedex-data.js', js.encode('utf-8'))

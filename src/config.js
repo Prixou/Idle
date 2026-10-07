@@ -39,6 +39,12 @@
     LEGENDARY_ZONE_OFFSET: 11,
 
     PERSIST_AFTER_CATCHES: 25,       // demande de stockage persistant après N captures
+
+    // Affichage des sprites 96x96 : x2 au maximum, réduits si le Pokémon dépasse
+    // SPRITE_MAX_SIZE px à l'écran, posés SPRITE_GROUND px au-dessus du bas de l'arène de combat
+    SPRITE_MAX_SCALE: 2,
+    SPRITE_MAX_SIZE: 136,
+    SPRITE_GROUND: 16,
   };
 
   // hp / reward : multiplicateurs appliqués aux valeurs de base
@@ -67,7 +73,7 @@
   const itemSprite = (item) => SPRITES + 'items/' + item + '.png';
 
   // Données générées par tools/fetch_assets.py (src/pokedex-data.js)
-  const POKEMON = window.POKEDEX_DATA.map(([id, name, rarity, stage, gen, hasShiny]) => {
+  const POKEMON = window.POKEDEX_DATA.map(([id, name, rarity, stage, gen, box, hasShiny]) => {
     const offset = rarity === 'legendary' ? GAME.LEGENDARY_ZONE_OFFSET : GAME.STAGE_ZONE_OFFSET[stage] || 0;
     const sprite = SPRITES + 'pokemon/' + id + '.png';
     return {
@@ -77,6 +83,7 @@
       stage,
       gen,
       minZone: REGION_BY_GEN[gen].zone + offset,
+      box, // [x0, y0, x1, y1] : partie visible du sprite dans l'image 96x96
       sprite,
       shinySprite: hasShiny === 0 ? sprite : SPRITES + 'pokemon/shiny/' + id + '.png',
     };

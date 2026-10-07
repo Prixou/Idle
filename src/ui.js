@@ -210,6 +210,7 @@
         cell.dataset.rarity = p.rarity;
         cell.innerHTML = '<img alt="" loading="lazy" draggable="false"><span class="dex-num"></span>';
         cell.firstChild.src = p.sprite;
+        layoutDexSprite(cell.firstChild, p);
         cell.lastChild.textContent = p.id;
       }
       el.dexGrid.appendChild(cell);
@@ -359,10 +360,39 @@
   /* Pokémon sauvage                                                     */
   /* ------------------------------------------------------------------ */
 
+  // Taille et position du sprite selon sa partie visible : les grands Pokémon sont réduits
+  // pour tenir dans l'arène, et tous sont posés sur la plateforme.
+  function layoutSprite(img, p) {
+    const [x0, y0, x1, y1] = p.box;
+    const scale = Math.min(GAME.SPRITE_MAX_SCALE, GAME.SPRITE_MAX_SIZE / Math.max(x1 - x0, y1 - y0));
+    const cx = ((x0 + x1) / 2) * scale;
+    const size = 96 * scale + 'px';
+    Object.assign(img.style, {
+      width: size,
+      height: size,
+      left: 'calc(50% - ' + cx + 'px)',
+      bottom: GAME.SPRITE_GROUND - (96 - y1) * scale + 'px',
+      transformOrigin: cx + 'px ' + y1 * scale + 'px',
+    });
+  }
+
+  // Même principe dans le Pokédex : le Pokémon occupe ~80% de la case, centré
+  function layoutDexSprite(img, p) {
+    const [x0, y0, x1, y1] = p.box;
+    const size = Math.min(180, (80 * 96) / Math.max(x1 - x0, y1 - y0)); // en % de la case
+    Object.assign(img.style, {
+      width: size + '%',
+      height: size + '%',
+      left: 50 - (((x0 + x1) / 2) * size) / 96 + '%',
+      top: 50 - (((y0 + y1) / 2) * size) / 96 + '%',
+    });
+  }
+
   UI.renderWild = function (appear) {
     const w = game.state.wild;
     const p = POKEMON_BY_ID[w.id];
     el.pokeSprite.src = w.shiny ? p.shinySprite : p.sprite;
+    layoutSprite(el.pokeSprite, p);
     el.pokeSprite.alt = p.name;
     setText(el.pokeName, p.name.toUpperCase());
     setText(el.pokeRarity, w.shiny ? 'CHROMA' : RARITIES[p.rarity].label);
