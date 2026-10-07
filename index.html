@@ -8,11 +8,11 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Poké Tycoon">
   <title>Pokémon Tycoon</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='white' stroke='black' stroke-width='3'/><path d='M2 16a14 14 0 0 1 28 0z' fill='%23e3350d' stroke='black' stroke-width='3'/><circle cx='16' cy='16' r='4' fill='white' stroke='black' stroke-width='3'/></svg>">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
@@ -45,11 +45,16 @@
 
       <button class="poke-btn" id="poke-btn" type="button" aria-label="Attaquer le Pokémon">
         <span class="poke-platform" aria-hidden="true"></span>
-        <span class="poke-bounce"><span class="poke-sprite" id="poke-sprite"></span></span>
-        <span class="ball ball--poke catch-ball" id="catch-ball" aria-hidden="true"></span>
+        <span class="poke-bounce"><img class="poke-sprite" id="poke-sprite" alt="" draggable="false"></span>
+        <img class="catch-ball" id="catch-ball" src="assets/sprites/items/poke-ball.png" alt="" draggable="false">
+      </button>
+
+      <button class="roamer" id="roamer" type="button" aria-label="Attraper Leveinard" hidden>
+        <img alt="" draggable="false">
       </button>
 
       <p class="hint">TAPE POUR<br>ATTRAPER !</p>
+      <div class="buffs" id="buffs" aria-live="polite"></div>
       <div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
     </section>
 
@@ -76,21 +81,26 @@
         <dl class="stats" id="stats-list"></dl>
 
         <div class="panel-head"><h2>POKÉDEX</h2><span class="dex-count" id="dex-count"></span></div>
+        <p class="dex-bonus" id="dex-bonus"></p>
         <div class="dex" id="dex-grid"></div>
 
+        <div class="panel-head"><h2>SAUVEGARDE</h2></div>
         <div class="actions">
           <button type="button" class="btn btn--blue" id="btn-save">SAUVEGARDER</button>
+          <button type="button" class="btn btn--blue" id="btn-export">EXPORTER</button>
+          <button type="button" class="btn btn--blue" id="btn-import">IMPORTER</button>
           <button type="button" class="btn btn--red" id="btn-reset">RÉINITIALISER</button>
+          <button type="button" class="btn btn--yellow btn--wide" id="btn-install" hidden>INSTALLER L'APPLI</button>
         </div>
       </section>
     </main>
 
     <nav class="tabs" role="tablist">
       <button type="button" class="tab active" data-tab="generators" role="tab" aria-selected="true">
-        <span class="tab-icon ball ball--poke" aria-hidden="true"></span><span>GÉNÉRATEURS</span><i class="dot"></i>
+        <img class="tab-icon" src="assets/sprites/items/poke-ball.png" alt="" draggable="false"><span>GÉNÉRATEURS</span><i class="dot"></i>
       </button>
       <button type="button" class="tab" data-tab="upgrades" role="tab" aria-selected="false">
-        <span class="tab-icon emoji" aria-hidden="true">⬆️</span><span>UPGRADES</span><i class="dot"></i>
+        <img class="tab-icon" src="assets/sprites/items/x-attack.png" alt="" draggable="false"><span>UPGRADES</span><i class="dot"></i>
       </button>
       <button type="button" class="tab" data-tab="stats" role="tab" aria-selected="false">
         <span class="tab-icon emoji" aria-hidden="true">📊</span><span>STATS</span>
@@ -98,8 +108,21 @@
     </nav>
   </div>
 
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+    <div class="modal-box">
+      <h2 id="modal-title"></h2>
+      <p id="modal-text"></p>
+      <textarea id="modal-input" rows="6" spellcheck="false"></textarea>
+      <div class="actions">
+        <button type="button" class="btn btn--blue" id="modal-ok"></button>
+        <button type="button" class="btn btn--red" id="modal-close">FERMER</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
+  <script src="src/pokedex-data.js"></script>
   <script src="src/config.js"></script>
   <script src="src/ui.js"></script>
   <script src="src/game.js"></script>

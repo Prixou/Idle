@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  const { RARITIES, POKEMON, POKEMON_BY_ID, GENERATORS, UPGRADES } = window.CONFIG;
+  const { GAME, RARITIES, POKEMON, POKEMON_BY_ID, GENERATORS, UPGRADES, BUFFS } = window.CONFIG;
 
   /* ------------------------------------------------------------------ */
   /* Formatage                                                           */
@@ -44,6 +44,10 @@
     return s + 's';
   }
 
+  function formatMult(v) {
+    return 'x' + (v < 10 ? v.toFixed(2) : format(v));
+  }
+
   /* ------------------------------------------------------------------ */
   /* Helpers DOM                                                         */
   /* ------------------------------------------------------------------ */
@@ -58,6 +62,14 @@
     }
   }
 
+  function setWidth(node, ratio) {
+    const width = Math.round(Math.min(1, Math.max(0, ratio)) * 1000) / 10 + '%';
+    if (node._width !== width) {
+      node._width = width;
+      node.style.width = width;
+    }
+  }
+
   // Relance une animation CSS même si la classe est déjà présente
   function restartAnim(node, cls) {
     node.classList.remove(cls);
@@ -66,7 +78,7 @@
   }
 
   function iconHtml(item) {
-    if (item.ball) return '<span class="ball ball--' + item.ball + '" aria-hidden="true"></span>';
+    if (item.sprite) return '<img class="item-sprite" src="' + item.sprite + '" alt="" draggable="false">';
     return '<span class="emoji" aria-hidden="true">' + item.icon + '</span>';
   }
 
@@ -80,9 +92,13 @@
   const upRows = {};
   const statRows = [];
   const dexCells = {};
+  const buffChips = {};
   let game = null;
   let activeTab = 'generators';
   let statsTimer = Infinity;
+  let dexDirty = true;
+  let installPrompt = null;
+  let modalAction = null;
   let fps = 60;
   let fpsFrames = 0;
   let fpsTime = 0;
@@ -91,11 +107,14 @@
     ['Pokédollars', (s) => format(s.coins) + ' ₽'],
     ['Total gagné', (s) => format(s.totalEarned) + ' ₽'],
     ['Production', (s, d) => format(d.pps) + ' ₽/s'],
-    ['Bonus prod.', (s, d) => 'x' + d.prodMult.toFixed(1)],
+    ['Boost Génération', (s, d) => formatMult(d.prodMult)],
+    ['Bonus Pokédex', (s, d) => formatMult(d.dexMult)],
     ['Dégâts / clic', (s, d) => format(d.damage)],
     ['Chance crit.', (s, d) => Math.round(d.critChance * 100) + '%'],
     ['Zone', () => game.zone()],
     ['Attrapés', (s) => format(s.totalCaught)],
+    ['Chromatiques', (s) => format(s.totalShinies)],
+    ['Leveinard attrapés', (s) => format(s.roamersCaught)],
     ['Clics', (s) => format(s.totalClicks)],
     ['Critiques', (s) => format(s.totalCrits)],
     ['Dégâts infligés', (s) => format(s.totalDamage)],
@@ -115,21 +134,25 @@
     btn.innerHTML =
       '<span class="card-icon">' + iconHtml(iconSource) + '</span>' +
       '<span class="card-body">' +
-        '<span class="card-title"><span class="card-name"></span><span class="badge"></span></span>' +
+        '<span class="card-title"><span class="card-name"></span><span class="badge"></span>' +
+          '<span class="badge badge--mult"></span></span>' +
         '<span class="card-desc"></span>' +
         '<span class="card-sub"></span>' +
       '</span>' +
-      '<span class="card-cost"><span class="qty"></span><span class="price"></span></span>';
+      '<span class="card-cost"><span class="qty"></span><span class="price"></span></span>' +
+      '<span class="card-progress"><i></i></span>';
     btn.addEventListener('click', () => restartAnim(btn, onBuy() ? 'bought' : 'denied'));
     list.appendChild(btn);
     return {
       btn,
       name: btn.querySelector('.card-name'),
       badge: btn.querySelector('.badge'),
+      mult: btn.querySelector('.badge--mult'),
       desc: btn.querySelector('.card-desc'),
       sub: btn.querySelector('.card-sub'),
       qty: btn.querySelector('.qty'),
       price: btn.querySelector('.price'),
+      progress: btn.querySelector('.card-progress i'),
     };
   }
 
@@ -144,6 +167,7 @@
       const row = buildCard(el.upList, u, () => game.buyUpgrade(u.id));
       setText(row.name, u.name);
       setText(row.desc, u.desc);
+      row.btn.classList.add('no-progress');
       upRows[u.id] = row;
     }
 
@@ -161,8 +185,9 @@
       const cell = document.createElement('div');
       cell.className = 'dex-cell';
       cell.dataset.rarity = p.rarity;
-      cell.innerHTML = '<span></span>';
-      cell.firstChild.textContent = p.emoji;
+      cell.innerHTML = '<img alt="" loading="lazy" draggable="false"><span class="dex-num"></span>';
+      cell.firstChild.src = p.sprite;
+      cell.lastChild.textContent = p.id;
       el.dexGrid.appendChild(cell);
       dexCells[p.id] = cell;
     }
@@ -179,6 +204,17 @@
       if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
         e.preventDefault();
         game.attack(null, null);
+      }
+    });
+    el.roamer.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      game.catchRoamer();
+    });
+    el.roamer.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        game.catchRoamer();
       }
     });
     el.arena.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -198,8 +234,29 @@
     el.btnSave.addEventListener('click', () => {
       UI.toast(game.save() ? 'Partie sauvegardée !' : 'Sauvegarde impossible', 'blue');
     });
+    el.btnExport.addEventListener('click', openExport);
+    el.btnImport.addEventListener('click', openImport);
     el.btnReset.addEventListener('click', () => {
       if (window.confirm('Réinitialiser toute la progression ?')) game.reset();
+    });
+
+    el.modalClose.addEventListener('click', closeModal);
+    el.modal.addEventListener('click', (e) => {
+      if (e.target === el.modal) closeModal();
+    });
+    el.modalOk.addEventListener('click', () => modalAction && modalAction());
+
+    // Bouton « Installer » (Chrome / Android uniquement)
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      installPrompt = e;
+      el.btnInstall.hidden = false;
+    });
+    el.btnInstall.addEventListener('click', () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      installPrompt = null;
+      el.btnInstall.hidden = true;
     });
   }
 
@@ -234,6 +291,8 @@
       hpFill: $('hp-fill'),
       hpText: $('hp-text'),
       fxLayer: $('fx-layer'),
+      roamer: $('roamer'),
+      buffs: $('buffs'),
       panels: $('panels'),
       genList: $('gen-list'),
       upList: $('up-list'),
@@ -241,12 +300,23 @@
       statsList: $('stats-list'),
       dexGrid: $('dex-grid'),
       dexCount: $('dex-count'),
+      dexBonus: $('dex-bonus'),
       btnSave: $('btn-save'),
+      btnExport: $('btn-export'),
+      btnImport: $('btn-import'),
       btnReset: $('btn-reset'),
+      btnInstall: $('btn-install'),
+      modal: $('modal'),
+      modalTitle: $('modal-title'),
+      modalText: $('modal-text'),
+      modalInput: $('modal-input'),
+      modalOk: $('modal-ok'),
+      modalClose: $('modal-close'),
       toasts: $('toasts'),
       tabGenerators: document.querySelector('.tab[data-tab="generators"]'),
       tabUpgrades: document.querySelector('.tab[data-tab="upgrades"]'),
     });
+    el.roamer.querySelector('img').src = window.CONFIG.roamerSprite;
     buildLists();
     bindEvents();
   };
@@ -254,6 +324,7 @@
   UI.refreshAll = function () {
     UI.renderWild(true);
     statsTimer = Infinity;
+    dexDirty = true;
     UI.update(0);
   };
 
@@ -262,11 +333,14 @@
   /* ------------------------------------------------------------------ */
 
   UI.renderWild = function (appear) {
-    const p = POKEMON_BY_ID[game.state.wild.id];
-    setText(el.pokeSprite, p.emoji);
+    const w = game.state.wild;
+    const p = POKEMON_BY_ID[w.id];
+    el.pokeSprite.src = w.shiny ? p.shinySprite : p.sprite;
+    el.pokeSprite.alt = p.name;
     setText(el.pokeName, p.name.toUpperCase());
-    setText(el.pokeRarity, RARITIES[p.rarity].label);
+    setText(el.pokeRarity, w.shiny ? 'CHROMA' : RARITIES[p.rarity].label);
     el.arena.dataset.rarity = p.rarity;
+    el.arena.dataset.shiny = w.shiny;
     el.pokeBtn.setAttribute('aria-label', 'Attaquer ' + p.name);
     el.pokeSprite.classList.remove('caught', 'hit', 'appear');
     el.catchBall.classList.remove('show');
@@ -277,7 +351,7 @@
   UI.updateHp = function () {
     const w = game.state.wild;
     const ratio = w.hp / w.maxHp;
-    el.hpFill.style.width = ratio * 100 + '%';
+    setWidth(el.hpFill, ratio);
     el.hpFill.dataset.level = ratio > 0.5 ? 'high' : ratio > 0.2 ? 'mid' : 'low';
     setText(el.hpText, format(Math.ceil(w.hp)) + ' / ' + format(w.maxHp));
   };
@@ -287,10 +361,10 @@
     restartAnim(el.pokeSprite, 'hit');
   };
 
-  // Position (relative à l'arène) du centre du sprite
-  function spriteCenter() {
+  // Position (relative à l'arène) du centre d'un élément
+  function centerOf(node) {
     const a = el.arena.getBoundingClientRect();
-    const r = el.pokeSprite.getBoundingClientRect();
+    const r = node.getBoundingClientRect();
     return { x: r.left + r.width / 2 - a.left, y: r.top + r.height / 2 - a.top };
   }
 
@@ -315,11 +389,28 @@
     }
   }
 
+  function floatingText(x, y, title, sub, extra) {
+    const text = document.createElement('div');
+    text.className = 'catch-text';
+    text.innerHTML = '<span></span><small></small>';
+    text.firstChild.textContent = title;
+    text.lastChild.textContent = sub;
+    if (extra) {
+      const badge = document.createElement('em');
+      badge.textContent = extra;
+      text.appendChild(badge);
+    }
+    const w = el.arena.clientWidth;
+    text.style.left = Math.min(Math.max(x, 100), w - 100) + 'px';
+    text.style.top = y + 'px';
+    addFx(text);
+  }
+
   UI.showDamage = function (clientX, clientY, dmg, crit) {
     let x;
     let y;
     if (clientX == null) {
-      const c = spriteCenter();
+      const c = centerOf(el.pokeSprite);
       x = c.x;
       y = c.y - 30;
     } else {
@@ -338,22 +429,40 @@
     if (crit) particles(x, y, 6, 'var(--yellow)');
   };
 
-  UI.playCatch = function (p, reward) {
+  UI.playCatch = function (p, reward, shiny, isNew) {
     el.pokeSprite.classList.remove('hit', 'appear');
     el.pokeSprite.classList.add('caught');
     restartAnim(el.catchBall, 'show');
 
-    const c = spriteCenter();
-    const text = document.createElement('div');
-    text.className = 'catch-text';
-    text.innerHTML = 'ATTRAPÉ !<small></small>';
-    text.lastChild.textContent = '+' + format(reward) + ' ₽';
-    text.style.left = Math.min(c.x, el.arena.clientWidth - 90) + 'px';
-    text.style.top = c.y - 40 + 'px';
-    addFx(text);
-
-    particles(c.x, c.y, p.rarity === 'legendary' ? 20 : 12, p.rarity === 'legendary' ? 'var(--yellow)' : '#fff');
+    const c = centerOf(el.pokeSprite);
+    floatingText(c.x, c.y - 40, shiny ? '★ ATTRAPÉ ! ★' : 'ATTRAPÉ !', '+' + format(reward) + ' ₽',
+      isNew ? 'NOUVEAU ! Pokédex +' + Math.round(GAME.DEX_BONUS_PER_SPECIES * 100) + '%' : '');
+    const big = shiny || p.rarity === 'legendary';
+    particles(c.x, c.y, big ? 20 : 12, big ? 'var(--yellow)' : '#fff');
     restartAnim(el.wallet, 'bump');
+    dexDirty = true;
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Pokémon errant                                                      */
+  /* ------------------------------------------------------------------ */
+
+  UI.showRoamer = function (duration) {
+    el.roamer.style.animationDuration = duration + 's';
+    el.roamer.hidden = false;
+    restartAnim(el.roamer, 'show');
+  };
+
+  UI.hideRoamer = function () {
+    el.roamer.classList.remove('show');
+    el.roamer.hidden = true;
+  };
+
+  UI.roamerEffect = function (title, sub) {
+    const c = { x: el.arena.clientWidth / 2, y: el.arena.clientHeight / 2 };
+    floatingText(c.x, c.y, title, sub);
+    particles(c.x, c.y, 24, 'var(--yellow)');
+    UI.toast('Leveinard : ' + title + ' ' + sub, 'gold');
   };
 
   /* ------------------------------------------------------------------ */
@@ -364,6 +473,7 @@
     for (const g of GENERATORS) {
       const row = genRows[g.id];
       const unlocked = game.isGeneratorUnlocked(g);
+      const owned = s.generators[g.id];
       const qty = game.buyQuantity(g);
       const cost = game.generatorCost(g, qty);
       row.btn.classList.toggle('locked', !unlocked);
@@ -373,14 +483,23 @@
       if (!unlocked) {
         setText(row.name, '???');
         setText(row.badge, 'x0');
+        setText(row.mult, '');
         setText(row.desc, 'Achète le générateur précédent pour débloquer.');
         setText(row.sub, '');
+        setWidth(row.progress, 0);
         continue;
       }
+      const reached = game.milestonesReached(g);
+      const next = game.nextMilestone(g);
+      const prev = reached ? GAME.GEN_MILESTONES[reached - 1] : 0;
       setText(row.name, g.name);
-      setText(row.badge, 'x' + s.generators[g.id]);
-      setText(row.desc, g.desc);
-      setText(row.sub, '+' + format(g.baseProd * d.prodMult) + '/s chacun · ' + format(d.genProd[g.id]) + ' ₽/s');
+      setText(row.badge, 'x' + owned);
+      setText(row.mult, reached ? '×' + Math.pow(2, reached) : '');
+      setText(row.desc, next
+        ? 'Palier ' + next + ' : ' + owned + '/' + next + ' → prod x2'
+        : 'Tous les paliers atteints !');
+      setText(row.sub, '+' + format(g.baseProd * d.genMult[g.id]) + '/s chacun · ' + format(d.genProd[g.id]) + ' ₽/s');
+      setWidth(row.progress, next ? (owned - prev) / (next - prev) : 1);
     }
   }
 
@@ -401,17 +520,54 @@
     }
   }
 
-  function updateStats(s, d) {
-    STATS.forEach(([, fn], i) => setText(statRows[i], fn(s, d)));
+  function updateDex(s, d) {
     let seen = 0;
+    let shinies = 0;
     for (const p of POKEMON) {
       const caught = s.pokedex[p.id] || 0;
+      const shiny = s.shinydex[p.id] || 0;
       if (caught) seen++;
+      if (shiny) shinies++;
       const cell = dexCells[p.id];
       cell.classList.toggle('seen', caught > 0);
-      cell.title = caught ? p.name + ' ×' + caught : '???';
+      cell.classList.toggle('shiny', shiny > 0);
+      const src = shiny ? p.shinySprite : p.sprite;
+      if (!cell.firstChild.src.endsWith(src)) cell.firstChild.src = src;
+      cell.title = caught ? '#' + p.id + ' ' + p.name + ' ×' + caught + (shiny ? ' (★' + shiny + ')' : '') : '#' + p.id + ' ???';
     }
-    setText(el.dexCount, seen + '/' + POKEMON.length);
+    setText(el.dexCount, seen + '/' + POKEMON.length + (shinies ? ' · ★' + shinies : ''));
+    setText(el.dexBonus, 'Bonus : ' + formatMult(d.dexMult) + ' production et récompenses (+' +
+      Math.round(GAME.DEX_BONUS_PER_SPECIES * 100) + '% par espèce, +' +
+      Math.round(GAME.DEX_BONUS_PER_SHINY * 100) + '% par chromatique)');
+  }
+
+  function updateStats(s, d) {
+    STATS.forEach(([, fn], i) => setText(statRows[i], fn(s, d)));
+    if (dexDirty) {
+      dexDirty = false;
+      updateDex(s, d);
+    }
+  }
+
+  function updateBuffs(s) {
+    let any = false;
+    for (const id of Object.keys(BUFFS)) {
+      const left = s.buffs[id] || 0;
+      let chip = buffChips[id];
+      if (left > 0) {
+        any = true;
+        if (!chip) {
+          chip = buffChips[id] = document.createElement('div');
+          chip.className = 'buff buff--' + id;
+          el.buffs.appendChild(chip);
+        }
+        setText(chip, BUFFS[id].label + ' ' + Math.ceil(left) + 's');
+      } else if (chip) {
+        chip.remove();
+        delete buffChips[id];
+      }
+    }
+    el.arena.classList.toggle('has-buffs', any);
   }
 
   function anyGeneratorAffordable(s) {
@@ -436,8 +592,10 @@
 
     setText(el.coins, format(s.coins));
     setText(el.pps, format(d.pps));
+    el.wallet.classList.toggle('frenzy', game.buffActive('frenzy'));
     setText(el.zone, game.zone());
     setText(el.caughtCount, format(s.totalCaught));
+    updateBuffs(s);
 
     el.tabGenerators.classList.toggle('has-dot', activeTab !== 'generators' && anyGeneratorAffordable(s));
     el.tabUpgrades.classList.toggle('has-dot', activeTab !== 'upgrades' && anyUpgradeAffordable(s));
@@ -452,6 +610,56 @@
       }
     }
   };
+
+  /* ------------------------------------------------------------------ */
+  /* Export / import                                                     */
+  /* ------------------------------------------------------------------ */
+
+  function openModal(title, text, value, okLabel, action) {
+    setText(el.modalTitle, title);
+    setText(el.modalText, text);
+    el.modalInput.value = value;
+    el.modalInput.readOnly = !!value;
+    setText(el.modalOk, okLabel);
+    modalAction = action;
+    el.modal.hidden = false;
+    if (value) el.modalInput.select();
+    else el.modalInput.focus();
+  }
+
+  function closeModal() {
+    el.modal.hidden = true;
+    modalAction = null;
+  }
+
+  function openExport() {
+    openModal('EXPORTER', 'Garde ce texte en lieu sûr : il contient toute ta progression.',
+      game.exportSave(), 'COPIER', () => {
+        el.modalInput.select();
+        const done = () => UI.toast('Sauvegarde copiée !', 'blue');
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(el.modalInput.value).then(done, () => {
+            if (document.execCommand('copy')) done();
+          });
+        } else if (document.execCommand('copy')) {
+          done();
+        }
+      });
+  }
+
+  function openImport() {
+    openModal('IMPORTER', 'Colle une sauvegarde exportée. Ta progression actuelle sera remplacée.',
+      '', 'IMPORTER', () => {
+        const text = el.modalInput.value;
+        if (!text.trim()) return;
+        if (game.importSave(text)) {
+          closeModal();
+          UI.toast('Sauvegarde importée !', 'gold');
+        } else {
+          UI.toast('Sauvegarde invalide');
+        }
+      });
+  }
 
   /* ------------------------------------------------------------------ */
   /* Toasts                                                              */

@@ -1,0 +1,17 @@
+{
+  "name": "Pokémon Tycoon",
+  "short_name": "Poké Tycoon",
+  "description": "Jeu idle / clicker rétro : attrape des Pokémon et bâtis ton empire de Pokéballs.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b2d42",
+  "theme_color": "#e3350d",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
